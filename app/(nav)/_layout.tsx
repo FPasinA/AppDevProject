@@ -10,7 +10,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Drawer } from 'expo-router/drawer';
 
 const NumberContext = createContext({storedNumber: 2200, setStoredNumber: (num: number) => {}});
-export function useNumber() {
+export function useNumber(p0: number) {
   const context = useContext(NumberContext);
   if (!context) {
     throw new Error('useNumber must be used within a NumberProvider');
