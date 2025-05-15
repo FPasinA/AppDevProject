@@ -27,7 +27,7 @@ const EditableNumber = ({ value, onChange }) => {
             value={inputValue}
             onChangeText={setInputValue}
             keyboardType="numeric"
-            style={{ borderWidth: 1, padding: 8, width: 60, color:"D3D3D3" }}
+            style={{ borderWidth: 1, padding: 8, width: 60, color:"D3D3D3", textAlign:"center", borderColor: 'white', borderRadius: 4, backgroundColor: 'white' }} // Green background
           />
           <TouchableOpacity onPress={handleSave}
           style={{
@@ -35,7 +35,7 @@ const EditableNumber = ({ value, onChange }) => {
     borderRadius: 4,
     backgroundColor: 'white', // Green background
   }}>
-            <Text style={{ marginLeft: 8, color:"D3D3D3" }}>✓</Text>
+            <Text style={{ marginLeft: 8, color:"D3D3D3", textAlign:"center" }}>✓</Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -47,7 +47,7 @@ const EditableNumber = ({ value, onChange }) => {
     borderRadius: 4,
   }}
 >
-  <Text style={{ color: '#D3D3D3', fontSize: 32 }}>
+  <Text style={{ color: '#D3D3D3', fontSize: 32, textAlign: 'center' }}>
     {value}
   </Text>
 </TouchableOpacity>
