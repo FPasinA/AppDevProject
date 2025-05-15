@@ -1,13 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
+type Category = 'suggest' | 'favorite';
+type FoodItem = {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+};
+type FoodItemsByCategory = {
+  suggest: FoodItem[];
+  favorite: FoodItem[];
+};
+
 const FoodSuggestionPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedWeight, setSelectedWeight] = useState('');
-  const [activeCategory, setActiveCategory] = useState('recent');
-  const [selectedFood, setSelectedFood] = useState(null);
+  const [activeCategory, setActiveCategory] = useState<Category>('suggest');
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [filteredItems, setFilteredItems] = useState({ recent: [], suggest: [], favorite: [] });
+  const [filteredItems, setFilteredItems] = useState<FoodItemsByCategory>({suggest: [], favorite: [] });
 
   // Sample data with more details
   const allFoodItems = {
@@ -40,7 +53,7 @@ const FoodSuggestionPage = () => {
     }
   }, [searchQuery]);
 
-  const openFoodDetail = (food) => {
+  const openFoodDetail = (food: React.SetStateAction<FoodItem | null>) => {
     setSelectedFood(food);
     setModalVisible(true);
   };
@@ -284,7 +297,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '85%',
-    backgroundColor: 'white',
+    backgroundColor: 'black',
     borderRadius: 15,
     padding: 20,
   },
@@ -296,7 +309,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#333',
+    color: '#D3D3D3',
   },
   nutritionInfo: {
     marginVertical: 15,
@@ -310,12 +323,12 @@ const styles = StyleSheet.create({
   },
   nutritionLabel: {
     fontSize: 16,
-    color: '#666',
+    color: '#D3D3D3',
   },
   nutritionValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#D3D3D3',
   },
   modalActions: {
     flexDirection: 'row',

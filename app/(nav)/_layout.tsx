@@ -28,7 +28,7 @@ const contextProvider = (
           <Drawer.Screen name="index" options={{ title: 'Home' }} />
           <Drawer.Screen name="tracker" options={{ title: 'Tracker' }} />
           <Drawer.Screen name="foodsuggest" options={{ title: 'Food Suggestion' }} />
-          <Drawer.Screen name="explore" options={{ title: 'Explore' }} />
+          <Drawer.Screen name="explore" options={{ title: 'Account' }} />
         </Drawer>
       ) : (
         <Tabs
@@ -66,7 +66,7 @@ const contextProvider = (
           <Tabs.Screen
             name="explore"
             options={{
-              title: 'Explore',
+              title: 'Account',
               tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
             }}
           />
