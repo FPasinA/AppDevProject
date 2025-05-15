@@ -1,16 +1,17 @@
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
 
 export default function MealDetail() {
   const { mealType } = useLocalSearchParams();
   const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedWeight, setSelectedWeight] = useState('');
   const [activeCategory, setActiveCategory] = useState('recent');
   const [selectedFood, setSelectedFood] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filteredItems, setFilteredItems] = useState({ recent: [], suggest: [], favorite: [] });
+  const [currentMeal, setCurrentMeal] = useState([]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -25,19 +26,19 @@ export default function MealDetail() {
 
   const allFoodItems = {
     recent: [
-      { name: 'Sandwich', calories: 300, protein: 12, carbs: 45, fats: 8},
-      { name: 'Bread', calories: 160, protein: 5, carbs: 30, fats: 2},
-      { name: 'Sushi', calories: 200, protein: 8, carbs: 35, fats: 3}
+      { id: 1, name: 'Sandwich', calories: 300, protein: 12, carbs: 45, fats: 8},
+      { id: 2, name: 'Bread', calories: 160, protein: 5, carbs: 30, fats: 2},
+      { id: 3, name: 'Sushi', calories: 200, protein: 8, carbs: 35, fats: 3}
     ],
     suggest: [
-      { name: 'Milk', calories: 120, protein: 8, carbs: 12, fats: 5},
-      { name: 'Pancake', calories: 250, protein: 6, carbs: 38, fats: 7},
-      { name: 'Omelet', calories: 180, protein: 12, carbs: 2, fats: 14}
+      { id: 4, name: 'Milk', calories: 120, protein: 8, carbs: 12, fats: 5},
+      { id: 5, name: 'Pancake', calories: 250, protein: 6, carbs: 38, fats: 7},
+      { id: 6, name: 'Omelet', calories: 180, protein: 12, carbs: 2, fats: 14}
     ],
     favorite: [
-      { name: 'Chicken', calories: 165, protein: 31, carbs: 0, fats: 3.6},
-      { name: 'Salad', calories: 50, protein: 2, carbs: 8, fats: 0.5},
-      { name: 'Yogurt', calories: 150, protein: 5, carbs: 20, fats: 4}
+      { id: 7, name: 'Chicken', calories: 165, protein: 31, carbs: 0, fats: 3.6},
+      { id: 8, name: 'Salad', calories: 50, protein: 2, carbs: 8, fats: 0.5},
+      { id: 9, name: 'Yogurt', calories: 150, protein: 5, carbs: 20, fats: 4}
     ]
   };
 
@@ -63,6 +64,48 @@ export default function MealDetail() {
 
   const closeFoodDetail = () => {
     setModalVisible(false);
+  };
+
+  // Calculate totals
+  const calculateTotals = () => {
+    return currentMeal.reduce((totals, item) => {
+      return {
+        calories: totals.calories + item.calories,
+        protein: totals.protein + item.protein,
+        carbs: totals.carbs + item.carbs,
+        fats: totals.fats + item.fats
+      };
+    }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  };
+
+  const totals = calculateTotals();
+
+  const addFoodToMeal = (food) => {
+    setCurrentMeal([...currentMeal, food]);
+    setModalVisible(false);
+    
+    Alert.alert(
+      'Added to Meal',
+      `${food.name} (${food.calories} kcal) added to your meal`,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const saveMeal = () => {
+    if (currentMeal.length === 0) {
+      Alert.alert('Empty Meal', 'Please add some foods to your meal before saving');
+      return;
+    }
+    
+    // Here you would typically save to AsyncStorage or your state management
+    Alert.alert(
+      'Meal Saved',
+      `Your meal with ${currentMeal.length} items (${totals.calories} kcal) has been saved`,
+      [{ text: 'OK' }]
+    );
+    
+    // Reset the current meal
+    setCurrentMeal([]);
   };
 
   return (
@@ -119,16 +162,27 @@ export default function MealDetail() {
       {/* Food Items List */}
       <ScrollView style={styles.itemsContainer}>
         {filteredItems[activeCategory].length > 0 ? (
-          filteredItems[activeCategory].map((item, index) => (
+          filteredItems[activeCategory].map((item) => (
             <TouchableOpacity 
-              key={`${activeCategory}-${index}`} 
+              key={`${activeCategory}-${item.id}`} 
               style={styles.item}
-              onPress={() => openFoodDetail(item)}
+              onPress={() => {
+                setSelectedFood(item);
+                setModalVisible(true);
+              }}
             >
               <View style={styles.itemContent}>
-                <Text style={styles.itemText}>{item.name}</Text>
+                <View>
+                  <Text style={styles.foodName}>{item.name}</Text>
+            <Text style={styles.foodDetails}>
+              {item.calories} kcal | P: {item.protein}g | C: {item.carbs}g | F: {item.fats}g
+            </Text>
+                </View>
               </View>
-              <TouchableOpacity style={styles.addButton}>
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={() => addFoodToMeal(item)}
+              >
                 <Text style={styles.addButtonText}>+</Text>
               </TouchableOpacity>
             </TouchableOpacity>
@@ -140,22 +194,43 @@ export default function MealDetail() {
           </View>
         )}
       </ScrollView>
-      
-      {/* Fixed Bottom Block - Weight Input */}
-      <View style={styles.bottomBlock}>
-        <View style={styles.weightContainer}>
-          <TextInput
-            style={styles.weightInput}
-            placeholder="Weight"
-            placeholderTextColor="#999"
-            keyboardType="numeric"
-            value={selectedWeight}
-            onChangeText={setSelectedWeight}
-          />
-          <Text style={styles.weightUnit}>g</Text>
+
+      {/* Current Meal Summary */}
+      {currentMeal.length > 0 && (
+        <View style={styles.currentMealContainer}>
+          <Text style={styles.currentMealTitle}>Current Meal:</Text>
+          {currentMeal.map((item, index) => (
+            <View key={index} style={styles.currentMealItem}>
+              <Text style={styles.currentMealText}>
+                {item.name} - {item.calories} kcal
+              </Text>
+              <TouchableOpacity 
+                style={styles.removeButton}
+                onPress={() => {
+                  setCurrentMeal(currentMeal.filter((_, i) => i !== index));
+                }}
+              >
+                <Text style={styles.removeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
-        <TouchableOpacity style={styles.addButtonLarge}>
-          <Text style={styles.addButtonLargeText}>ADD</Text>
+      )}
+      
+      {/* Fixed Bottom Block - Calories and Save */}
+      <View style={styles.bottomBlock}>
+        <View style={styles.caloriesContainer}>
+          <Text style={styles.caloriesLabel}>Total Calories:</Text>
+          <Text style={styles.caloriesLabel}>  {totals.calories} kcal</Text>
+          <Text style={styles.caloriesLabel}>Protein: {totals.protein}g</Text>
+          <Text style={styles.caloriesLabel}>Carbs: {totals.carbs}g</Text>
+          <Text style={styles.caloriesLabel}>Fats: {totals.fats}g</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.saveButton}
+          onPress={saveMeal}
+        >
+          <Text style={styles.saveButtonText}>SAVE MEAL</Text>
         </TouchableOpacity>
       </View>
       
@@ -203,8 +278,7 @@ export default function MealDetail() {
                   <TouchableOpacity 
                     style={styles.addButtonModal}
                     onPress={() => {
-                      // Add your logic to add this food
-                      closeFoodDetail();
+                      addFoodToMeal(selectedFood);
                     }}
                   >
                     <Text style={styles.addButtonModalText}>Add to Meal</Text>
@@ -349,26 +423,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  weightContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    marginRight: 10,
-    height: 80,
-  },
-  weightInput: {
-    flex: 1,
-    height: 45,
-    fontSize: 16,
-    color: '#333',
-  },
-  weightUnit: {
-    color: '#666',
-    fontSize: 16,
-  },
   addButtonLarge: {
     backgroundColor: '#4CAF50',
     borderRadius: 25,
@@ -458,5 +512,27 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    height: 45,
+    justifyContent: 'center',
+    flex: 1,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  caloriesLabel: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    marginLeft: 8,
   },
 });

@@ -7,14 +7,21 @@ import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 
-
 export default function HomeScreen() {
   const [kcal, setkcal] = useState(2200);
+
+  const handleKcalChange = (newValue: number) => {
+  if (newValue !== kcal) { // Only update if value changed
+    setkcal(newValue);
+  }
+};
+
   const router = useRouter();
 
   const goToMeal = (mealType: string) => {
     router.push(`/meal/${mealType}`);
   };
+
   return (
     <><ThemedText style={styles.Text}>Calories Today</ThemedText>
     <View style={styles.container}>
@@ -23,7 +30,7 @@ export default function HomeScreen() {
         <ThemedText style={styles.CalCount}>out of</ThemedText>
         <EditableNumber 
           value={kcal}
-          onChange={setkcal}
+          onChange={handleKcalChange}
         />
       </View>
       <View style={styles.column}>
@@ -60,11 +67,14 @@ export default function HomeScreen() {
         />
       </View>
     </View>
-    <MealButton label="Breakfast" onPress={() => goToMeal('Breakfast')} />
-    <MealButton label="Lunch" onPress={() => goToMeal('Lunch')} />
-        <MealButton label="Dinner" onPress={() => goToMeal('Dinner')} />
-        <MealButton label="Snacks" onPress={() => goToMeal('Snacks')} />
-        <MealButton label="Drinks" onPress={() => goToMeal('Drinks')} />
+    <View style={styles.stepContainer}>
+      <MealButton label="Breakfast" onPress={() => goToMeal('Breakfast')} />
+
+    </View>
+      <MealButton label="Lunch" onPress={() => goToMeal('Lunch')} />
+      <MealButton label="Dinner" onPress={() => goToMeal('Dinner')} />
+      <MealButton label="Snacks" onPress={() => goToMeal('Snacks')} />
+      <MealButton label="Drinks" onPress={() => goToMeal('Drinks')} />
     
     
     </>
