@@ -3,12 +3,14 @@ import { StyleSheet, View } from 'react-native';
 import DonutChart from '@/components/Donut';
 import EditableNumber from '@/components/EditableNumber';
 import MealButton from '@/components/MealButton';
+import { useNutrition } from '@/components/NutrientContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 
 export default function HomeScreen() {
   const [kcal, setkcal] = useState(2200);
+  const { meals, dailyTotals } = useNutrition();
 
   const handleKcalChange = (newValue: number) => {
   if (newValue !== kcal) { // Only update if value changed
@@ -26,7 +28,7 @@ export default function HomeScreen() {
     <><ThemedText style={styles.Text}>Calories Today</ThemedText>
     <View style={styles.container}>
       <View style={styles.column}>
-        <ThemedText style={styles.CalCount}>Calories</ThemedText>
+        <ThemedText style={styles.CalCount}>{dailyTotals.calories}</ThemedText>
         <ThemedText style={styles.CalCount}>out of</ThemedText>
         <EditableNumber 
           value={kcal}
@@ -35,7 +37,7 @@ export default function HomeScreen() {
       </View>
       <View style={styles.column}>
         <DonutChart 
-        ratio={0.7}
+        ratio={dailyTotals.calories / kcal}
         size={150}
         color="#e3f6c3"
         />
@@ -45,7 +47,7 @@ export default function HomeScreen() {
       <View style={styles.column}>
         <ThemedText style={styles.subCatText}>Proteins</ThemedText>
         <DonutChart 
-        ratio={0.8}
+        ratio={dailyTotals.protein*4 / kcal*0.40}
         size = {110}
         color = "#4ecdc4"
         />
@@ -53,7 +55,7 @@ export default function HomeScreen() {
       <View style={styles.column}>
         <ThemedText style={styles.subCatText}>Carbs</ThemedText>
         <DonutChart
-        ratio={0.8}
+        ratio={dailyTotals.carbs*5 / kcal*0.40}
         size = {110}
         color = "#45b7d1"
         />
@@ -61,7 +63,7 @@ export default function HomeScreen() {
       <View style={styles.column}>
         <ThemedText style={styles.subCatText}>Fats</ThemedText>
         <DonutChart 
-        ratio={0.8}
+        ratio={dailyTotals.fats*9 / kcal*0.20}
         size = {110}
         color = "#ffa07a"
         />

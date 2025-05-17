@@ -1,7 +1,7 @@
+import { useNutrition } from '@/components/NutrientContext';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-
 
 export default function MealDetail() {
   const { mealType } = useLocalSearchParams();
@@ -12,6 +12,7 @@ export default function MealDetail() {
   const [modalVisible, setModalVisible] = useState(false);
   const [filteredItems, setFilteredItems] = useState({ recent: [], suggest: [], favorite: [] });
   const [currentMeal, setCurrentMeal] = useState([]);
+  const { addMeal } = useNutrition();
 
   useEffect(() => {
     navigation.setOptions({
@@ -79,6 +80,17 @@ export default function MealDetail() {
   };
 
   const totals = calculateTotals();
+  useEffect(() => {
+    addMeal('breakfast', {
+      foods: currentMeal,
+      totals: {
+        calories: totals.calories,
+        protein: totals.protein,
+        carbs: totals.carbs,
+        fats: totals.fats
+      }
+    }); // ✅ Safe
+  }, []);
 
   const addFoodToMeal = (food) => {
     setCurrentMeal([...currentMeal, food]);
@@ -96,6 +108,17 @@ export default function MealDetail() {
       Alert.alert('Empty Meal', 'Please add some foods to your meal before saving');
       return;
     }
+
+    const totals = calculateTotals();
+    addMeal(mealType, {
+    foods: [...currentMeal], // Create a new array
+    totals: {
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fats: totals.fats
+    }
+  });
     
     // Here you would typically save to AsyncStorage or your state management
     Alert.alert(
@@ -228,7 +251,10 @@ export default function MealDetail() {
         </View>
         <TouchableOpacity 
           style={styles.saveButton}
-          onPress={saveMeal}
+          onPress={() => {
+            addMeal();
+            saveMeal();
+          }}
         >
           <Text style={styles.saveButtonText}>SAVE MEAL</Text>
         </TouchableOpacity>
