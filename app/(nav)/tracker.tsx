@@ -1,3 +1,4 @@
+import { useNutrition } from '@/components/NutrientContext';
 import { format } from 'date-fns';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -10,6 +11,8 @@ export default function TrackerScreen() {
   const [bmi, setBmi] = useState<number | null>(null);
   const [bmiStatus, setBmiStatus] = useState('');
   const today = new Date();
+  const { meals, dailyTotals } = useNutrition();
+  const [ kcal, setkcal ] = useState(2200);
 
   useEffect(() => {
     const startOfWeek = new Date(today);
@@ -73,15 +76,16 @@ export default function TrackerScreen() {
           <AnimatedCircularProgress
             size={240}
             width={18}
-            fill={70}
+            fill={dailyTotals.calories * 100 / kcal}
             tintColor="#4CAF50"
             backgroundColor="#2e2e2e"
             rotation={0}
           >
             {() => (
               <View style={styles.calorieTextContainer}>
-                <Text style={styles.calorieText}>1684</Text>
+                <Text style={styles.calorieText}>{dailyTotals.calories}</Text>
                 <Text style={styles.calorieSubText}>kcal eaten</Text>
+                <Text style={styles.calorieText}>{kcal}</Text>
               </View>
             )}
           </AnimatedCircularProgress>

@@ -1,16 +1,18 @@
 import { useNutrition } from '@/components/NutrientContext';
+import { database } from '@/database';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { onValue, ref } from 'firebase/database';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-export default function MealDetail() {
+const MealType = () => {
   const { mealType } = useLocalSearchParams();
   const navigation = useNavigation();
+  const [foodList, setFoodList] = useState([]);
+  const [selectedFood, setSelectedFood] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('recent');
-  const [selectedFood, setSelectedFood] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [filteredItems, setFilteredItems] = useState({ recent: [], suggest: [], favorite: [] });
   const [currentMeal, setCurrentMeal] = useState([]);
   const { addMeal } = useNutrition();
 
@@ -21,42 +23,74 @@ export default function MealDetail() {
       headerTitleStyle: {
         fontSize: 28,
         fontWeight: 'bold',
+        color: '#4CAF50',
+      },
+      headerStyle: {
+        backgroundColor: '#000',
       },
     });
   }, [mealType]);
 
-  const allFoodItems = {
-    recent: [
-      { id: 1, name: 'Sandwich', calories: 300, protein: 12, carbs: 45, fats: 8},
-      { id: 2, name: 'Bread', calories: 160, protein: 5, carbs: 30, fats: 2},
-      { id: 3, name: 'Sushi', calories: 200, protein: 8, carbs: 35, fats: 3}
-    ],
-    suggest: [
-      { id: 4, name: 'Milk', calories: 120, protein: 8, carbs: 12, fats: 5},
-      { id: 5, name: 'Pancake', calories: 250, protein: 6, carbs: 38, fats: 7},
-      { id: 6, name: 'Omelet', calories: 180, protein: 12, carbs: 2, fats: 14}
-    ],
-    favorite: [
-      { id: 7, name: 'Chicken', calories: 165, protein: 31, carbs: 0, fats: 3.6},
-      { id: 8, name: 'Salad', calories: 50, protein: 2, carbs: 8, fats: 0.5},
-      { id: 9, name: 'Yogurt', calories: 150, protein: 5, carbs: 20, fats: 4}
-    ]
+  useEffect(() => {
+    const foodRef = ref(database, 'foods');
+    onValue(foodRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const foodArray = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key],
+        }));
+        setFoodList(foodArray);
+      }
+    });
+  }, []);
+
+  const toggleSelectItem = (item) => {
+    setCurrentMeal(prev => [...prev, item]);
+    Alert.alert(
+      'Added to Meal',
+      `${item.name} (${item.calories} kcal) added to your meal`,
+      [{ text: 'OK' }]
+    );
   };
 
-  // Filter items based on search query
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredItems(allFoodItems);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = {
-        recent: allFoodItems.recent.filter(item => item.name.toLowerCase().includes(query)),
-        suggest: allFoodItems.suggest.filter(item => item.name.toLowerCase().includes(query)),
-        favorite: allFoodItems.favorite.filter(item => item.name.toLowerCase().includes(query))
+  const calculateTotals = () => {
+    return currentMeal.reduce((totals, item) => {
+      return {
+        calories: totals.calories + item.calories,
+        protein: totals.protein + item.protein,
+        carbs: totals.carbs + item.carbohydrates,
+        fats: totals.fats + item.fat
       };
-      setFilteredItems(filtered);
+    }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
+  };
+
+  const totals = calculateTotals();
+
+  const saveMeal = () => {
+    if (currentMeal.length === 0) {
+      Alert.alert('Empty Meal', 'Please add some foods to your meal before saving');
+      return;
     }
-  }, [searchQuery]);
+
+    addMeal(mealType, {
+      foods: [...currentMeal],
+      totals: {
+        calories: totals.calories,
+        protein: totals.protein,
+        carbs: totals.carbs,
+        fats: totals.fats
+      }
+    });
+
+    Alert.alert(
+      'Meal Saved',
+      `Your meal with ${currentMeal.length} items (${totals.calories} kcal) has been saved`,
+      [{ text: 'OK' }]
+    );
+
+    setCurrentMeal([]);
+  };
 
   const openFoodDetail = (food) => {
     setSelectedFood(food);
@@ -67,77 +101,11 @@ export default function MealDetail() {
     setModalVisible(false);
   };
 
-  // Calculate totals
-  const calculateTotals = () => {
-    return currentMeal.reduce((totals, item) => {
-      return {
-        calories: totals.calories + item.calories,
-        protein: totals.protein + item.protein,
-        carbs: totals.carbs + item.carbs,
-        fats: totals.fats + item.fats
-      };
-    }, { calories: 0, protein: 0, carbs: 0, fats: 0 });
-  };
-
-  const totals = calculateTotals();
-  useEffect(() => {
-    addMeal('breakfast', {
-      foods: currentMeal,
-      totals: {
-        calories: totals.calories,
-        protein: totals.protein,
-        carbs: totals.carbs,
-        fats: totals.fats
-      }
-    }); // ✅ Safe
-  }, []);
-
-  const addFoodToMeal = (food) => {
-    setCurrentMeal([...currentMeal, food]);
-    setModalVisible(false);
-    
-    Alert.alert(
-      'Added to Meal',
-      `${food.name} (${food.calories} kcal) added to your meal`,
-      [{ text: 'OK' }]
-    );
-  };
-
-  const saveMeal = () => {
-    if (currentMeal.length === 0) {
-      Alert.alert('Empty Meal', 'Please add some foods to your meal before saving');
-      return;
-    }
-
-    const totals = calculateTotals();
-    addMeal(mealType, {
-    foods: [...currentMeal], // Create a new array
-    totals: {
-      calories: totals.calories,
-      protein: totals.protein,
-      carbs: totals.carbs,
-      fats: totals.fats
-    }
-  });
-    
-    // Here you would typically save to AsyncStorage or your state management
-    Alert.alert(
-      'Meal Saved',
-      `Your meal with ${currentMeal.length} items (${totals.calories} kcal) has been saved`,
-      [{ text: 'OK' }]
-    );
-    
-    // Reset the current meal
-    setCurrentMeal([]);
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -158,7 +126,6 @@ export default function MealDetail() {
         )}
       </View>
       
-      {/* Category Buttons */}
       <View style={styles.categoryButtons}>
         <TouchableOpacity 
           style={[styles.categoryButton, activeCategory === 'recent' && styles.activeCategory]}
@@ -181,44 +148,23 @@ export default function MealDetail() {
           <Text style={[styles.categoryButtonText, activeCategory === 'favorite' && styles.activeCategoryText]}>Favorite</Text>
         </TouchableOpacity>
       </View>
-      
-      {/* Food Items List */}
-      <ScrollView style={styles.itemsContainer}>
-        {filteredItems[activeCategory].length > 0 ? (
-          filteredItems[activeCategory].map((item) => (
-            <TouchableOpacity 
-              key={`${activeCategory}-${item.id}`} 
-              style={styles.item}
-              onPress={() => {
-                setSelectedFood(item);
-                setModalVisible(true);
-              }}
-            >
-              <View style={styles.itemContent}>
-                <View>
-                  <Text style={styles.foodName}>{item.name}</Text>
-            <Text style={styles.foodDetails}>
-              {item.calories} kcal | P: {item.protein}g | C: {item.carbs}g | F: {item.fats}g
-            </Text>
-                </View>
-              </View>
-              <TouchableOpacity 
-                style={styles.addButton}
-                onPress={() => addFoodToMeal(item)}
-              >
-                <Text style={styles.addButtonText}>+</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))
-        ) : (
-          <View style={styles.noResults}>
-            <Text style={styles.noResultsText}>No foods found</Text>
-            <Text style={styles.noResultsSubText}>Try a different search term</Text>
-          </View>
-        )}
-      </ScrollView>
 
-      {/* Current Meal Summary */}
+      <Text style={styles.title}>Select Foods</Text>
+      <FlatList
+        data={foodList}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.foodItem}
+            onPress={() => toggleSelectItem(item)}
+            onLongPress={() => openFoodDetail(item)}
+          >
+            <Text style={styles.foodName}>{item.name}</Text>
+            <Text style={styles.foodDetails}>{item.calories} kcal</Text>
+          </TouchableOpacity>
+        )}
+      />
+
       {currentMeal.length > 0 && (
         <View style={styles.currentMealContainer}>
           <Text style={styles.currentMealTitle}>Current Meal:</Text>
@@ -240,27 +186,23 @@ export default function MealDetail() {
         </View>
       )}
       
-      {/* Fixed Bottom Block - Calories and Save */}
-      <View style={styles.bottomBlock}>
-        <View style={styles.caloriesContainer}>
-          <Text style={styles.caloriesLabel}>Total Calories:</Text>
-          <Text style={styles.caloriesLabel}>  {totals.calories} kcal</Text>
-          <Text style={styles.caloriesLabel}>Protein: {totals.protein}g</Text>
-          <Text style={styles.caloriesLabel}>Carbs: {totals.carbs}g</Text>
-          <Text style={styles.caloriesLabel}>Fats: {totals.fats}g</Text>
+      {currentMeal.length > 0 && (
+        <View style={styles.bottomBlock}>
+          <View style={styles.caloriesContainer}>
+            <Text style={styles.caloriesLabel}>Total Calories: {totals.calories} kcal</Text>
+            <Text style={styles.caloriesLabel}>Protein: {totals.protein}g</Text>
+            <Text style={styles.caloriesLabel}>Carbs: {totals.carbs}g</Text>
+            <Text style={styles.caloriesLabel}>Fats: {totals.fats}g</Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.saveButton}
+            onPress={saveMeal}
+          >
+            <Text style={styles.saveButtonText}>SAVE MEAL</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.saveButton}
-          onPress={() => {
-            addMeal();
-            saveMeal();
-          }}
-        >
-          <Text style={styles.saveButtonText}>SAVE MEAL</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* Food Detail Modal */}
+      )}
+
       <Modal
         animationType="slide"
         transparent={true}
@@ -286,11 +228,11 @@ export default function MealDetail() {
                   </View>
                   <View style={styles.nutritionRow}>
                     <Text style={styles.nutritionLabel}>Carbs:</Text>
-                    <Text style={styles.nutritionValue}>{selectedFood.carbs}g</Text>
+                    <Text style={styles.nutritionValue}>{selectedFood.carbohydrates}g</Text>
                   </View>
                   <View style={styles.nutritionRow}>
                     <Text style={styles.nutritionLabel}>Fats:</Text>
-                    <Text style={styles.nutritionValue}>{selectedFood.fats}g</Text>
+                    <Text style={styles.nutritionValue}>{selectedFood.fat}g</Text>
                   </View>
                 </View>
                 
@@ -304,7 +246,8 @@ export default function MealDetail() {
                   <TouchableOpacity 
                     style={styles.addButtonModal}
                     onPress={() => {
-                      addFoodToMeal(selectedFood);
+                      toggleSelectItem(selectedFood);
+                      closeFoodDetail();
                     }}
                   >
                     <Text style={styles.addButtonModalText}>Add to Meal</Text>
@@ -322,7 +265,81 @@ export default function MealDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+    padding: 16,
+    backgroundColor: '#000', // Black background
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#fff', // White text
+  },
+  foodItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333', // Darker border
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#1a1a1a', // Dark gray background
+  },
+  selectedItem: {
+    backgroundColor: '#2a2a2a', // Slightly lighter gray for selected
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50', // Green accent
+  },
+  foodName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff', // White text
+  },
+  foodDetails: {
+    fontSize: 14,
+    color: '#bbb', // Light gray text
+  },
+  detailsContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#1a1a1a', // Dark gray background
+    borderRadius: 8,
+  },
+  detailsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#fff', // White text
+  },
+  detailsItem: {
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333', // Darker border
+    paddingBottom: 8,
+  },
+  detailText: {
+    color: '#bbb', // Light gray text
+  },
+  addSelectedButton: {
+    backgroundColor: '#4CAF50', // Green button
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  addSelectedButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50', // Green button
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   searchContainer: {
     marginTop: 20,
@@ -334,19 +351,19 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 45,
-    borderColor: '#ddd',
+    borderColor: '#333', // Darker border
     borderWidth: 1,
     borderRadius: 25,
     paddingHorizontal: 45,
     paddingVertical: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#1a1a1a', // Dark gray background
     fontSize: 16,
-    color: '#333',
+    color: '#fff', // White text
   },
   clearButton: {
     position: 'absolute',
     right: 15,
-    backgroundColor: '#ccc',
+    backgroundColor: '#333', // Dark gray
     width: 25,
     height: 25,
     borderRadius: 15,
@@ -368,109 +385,85 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
+    backgroundColor: '#1a1a1a', // Dark gray background
   },
   activeCategory: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4CAF50', // Green active button
   },
   categoryButtonText: {
-    color: '#666',
+    color: '#bbb', // Light gray text
     fontWeight: '600',
     fontSize: 15,
   },
   activeCategoryText: {
     color: 'white',
   },
-  itemsContainer: {
-    flex: 1,
-    marginBottom: 80,
+  currentMealContainer: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#1a1a1a', // Dark gray background
+    borderRadius: 8,
   },
-  item: {
+  currentMealTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#fff', // White text
+  },
+  currentMealItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333', // Darker border
   },
-  itemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  foodImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  itemText: {
+  currentMealText: {
     fontSize: 16,
-    color: '#333',
-    flexShrink: 1,
+    color: '#fff', // White text
   },
-  addButton: {
-    backgroundColor: '#4CAF50',
+  removeButton: {
+    backgroundColor: '#ff4444',
     borderRadius: 12,
     width: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addButtonText: {
+  removeButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  noResults: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
-  noResultsText: {
-    fontSize: 18,
-    color: '#666',
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  noResultsSubText: {
-    fontSize: 14,
-    color: '#999',
   },
   bottomBlock: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: '#000', // Black background
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#333', // Darker border
     flexDirection: 'row',
     alignItems: 'center',
   },
-  addButtonLarge: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    height: 45,
-    justifyContent: 'center',
+  caloriesContainer: {
+    flex: 1,
   },
-  addButtonLargeText: {
-    color: 'white',
-    fontWeight: 'bold',
+  caloriesLabel: {
     fontSize: 16,
+    color: '#fff', // White text
+    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.8)', // Darker overlay
   },
   modalContent: {
     width: '85%',
-    backgroundColor: 'black',
+    backgroundColor: '#1a1a1a', // Dark gray background
     borderRadius: 15,
     padding: 20,
   },
@@ -478,17 +471,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  modalImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 10,
-  },
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#D3D3D3',
+    color: '#fff', // White text
   },
   nutritionInfo: {
     marginVertical: 15,
@@ -498,16 +485,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#333', // Darker border
   },
   nutritionLabel: {
     fontSize: 16,
-    color: '#D3D3D3',
+    color: '#fff', // White text
   },
   nutritionValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#D3D3D3',
+    color: '#4CAF50', // Green text for values
   },
   modalActions: {
     flexDirection: 'row',
@@ -516,20 +503,20 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#333', // Dark gray
     borderRadius: 10,
     flex: 1,
     marginRight: 10,
     alignItems: 'center',
   },
   closeButtonText: {
-    color: '#333',
+    color: '#fff', // White text
     fontWeight: '600',
     fontSize: 16,
   },
   addButtonModal: {
     padding: 12,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4CAF50', // Green button
     borderRadius: 10,
     flex: 1,
     alignItems: 'center',
@@ -539,26 +526,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
   },
-  saveButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    height: 45,
-    justifyContent: 'center',
-    flex: 1,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  caloriesLabel: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    marginLeft: 8,
-  },
 });
+
+export default MealType;
